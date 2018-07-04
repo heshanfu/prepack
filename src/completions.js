@@ -12,7 +12,7 @@
 import type { BabelNodeSourceLocation } from "babel-types";
 import invariant from "./invariant.js";
 import type { Effects, Realm } from "./realm.js";
-import { AbstractValue, Value } from "./values/index.js";
+import { AbstractValue, EmptyValue, Value } from "./values/index.js";
 
 export class Completion {
   constructor(value: Value, location: ?BabelNodeSourceLocation, target?: ?string) {
@@ -72,6 +72,8 @@ export class ReturnCompletion extends AbruptCompletion {
     super(value, location);
   }
 }
+
+export class ErasedAbruptCompletion extends AbruptCompletion {}
 
 export class ForkedAbruptCompletion extends AbruptCompletion {
   constructor(
@@ -158,6 +160,7 @@ export class ForkedAbruptCompletion extends AbruptCompletion {
   }
 
   transferChildrenToPossiblyNormalCompletion(): PossiblyNormalCompletion {
+    invariant(this.consequent.value instanceof EmptyValue || this.alternate.value instanceof EmptyValue);
     return new PossiblyNormalCompletion(
       this.value.$Realm.intrinsics.empty,
       this.joinCondition,
@@ -232,6 +235,7 @@ export class PossiblyNormalCompletion extends NormalCompletion {
   // TODO blappert: these functions are a copy of those in ForkedAbruptCompletion, but the two classes will be unified
   // soon
   updateConsequentKeepingCurrentEffects(newConsequent: Completion) {
+    if (newConsequent instanceof NormalCompletion) this.value = newConsequent.value;
     let effects = this.consequentEffects;
     newConsequent.effects = effects;
     newConsequent.effects.result = newConsequent;
@@ -240,6 +244,7 @@ export class PossiblyNormalCompletion extends NormalCompletion {
   }
 
   updateAlternateKeepingCurrentEffects(newAlternate: Completion) {
+    if (newAlternate instanceof NormalCompletion) this.value = newAlternate.value;
     let effects = this.alternateEffects;
     newAlternate.effects = effects;
     newAlternate.effects.result = newAlternate;
